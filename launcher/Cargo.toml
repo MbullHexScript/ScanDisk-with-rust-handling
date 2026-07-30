@@ -1,0 +1,15 @@
+[package]
+name = "launcher"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "Sweep"
+path = "src/main.rs"
+
+[dependencies]
+sweep-core = { path = "../core" }
+ratatui = "0.26"
+crossterm = "0.27"
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"

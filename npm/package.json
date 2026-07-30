@@ -1,0 +1,9 @@
+{
+  "name": "Sweep",
+  "version": "1.0.0",
+  "description": "disk usage analyzer",
+  "bin": {
+    "Sweep": "index.js"
+  },
+  "license": "MIT"
+}

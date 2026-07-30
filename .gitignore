@@ -1,0 +1,11 @@
+/target
+**/target
+
+# Hasil build npm wrapper (di-generate ulang tiap release, jangan di-commit)
+npm/bin/
+
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+.DS_Store

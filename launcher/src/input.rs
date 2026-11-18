@@ -57,6 +57,44 @@ fn drain_scan_progress(app: &mut App) {
                     s.done = done;
                     s.total = total;
                 }
+                ScanProgress::Reconciled { node, stats, cancelled } => {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs())
+                        .ok();
+
+                    let (message, scanned_at) = if cancelled {
+                        // Dibatalkan: tree masih bisa dipakai, tapi JANGAN disimpan ke cache
+                        // (sebagian belum dicocokkan) dan umur cache tetap yang lama.
+                        (
+                            Some("Validasi dibatalkan — data mungkin belum sesuai kondisi disk.".to_string()),
+                            s.cached_scanned_at,
+                        )
+                    } else {
+                        let mut message = Some(if stats.is_unchanged() {
+                            "Cache sudah sesuai kondisi disk.".to_string()
+                        } else {
+                            format!(
+                                "Cache disinkronkan: {} dihapus, {} baru, {} berubah.",
+                                stats.removed, stats.added, stats.updated
+                            )
+                        });
+                        if let Err(e) = cache::save(&s.root_path, &node) {
+                            message = Some(format!("Gagal menyimpan cache: {e}"));
+                        }
+                        (message, now)
+                    };
+
+                    transition = Some(Screen::Browsing(BrowsingState {
+                        root: node,
+                        root_path: s.root_path.clone(),
+                        current_path: s.root_path.clone(),
+                        cursor: 0,
+                        pending_delete: None,
+                        message: message.or_else(|| s.startup_message.clone()),
+                        cache_scanned_at: scanned_at,
+                    }));
+                }
                 ScanProgress::Finished { mut node, cancelled } => {
                     if cancelled {
                         quit = true;

@@ -15,6 +15,13 @@ Binary hasil ada di `target/release/Sweep.exe`
 Sweep D:\Kuliah
 ```
 
+## Opsi
+| Opsi | Fungsi |
+|---|---|
+| *(default)* | Pakai cache, tapi **dicocokkan dulu dengan kondisi disk**: folder/file yang sudah dihapus dibuang, yang baru ditambahkan, ukuran yang berubah diperbarui. |
+| `-r`, `--rescan` | Abaikan cache, scan ulang dari nol. |
+| `-f`, `--fast` | Pakai cache apa adanya tanpa validasi (instan, tapi bisa basi kalau isi disk berubah di luar Sweep). |
+
 ## Keybinding
 | Key | Aksi |
 |---|---|

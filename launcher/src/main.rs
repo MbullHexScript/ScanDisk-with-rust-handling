@@ -23,7 +23,7 @@ use std::thread;
     version,
     about = "Analisa penggunaan storage dan hapus file atau direktori yang memakan banyak ruang.",
     long_about = None,
-    after_help = "Examples:\n  sweep\n  sweep D:/Projectku\n  sweep -r\n  sweep -r D:/Projectku"
+    after_help = "Examples:\n  sweep\n  sweep D:/Projectku\n  sweep -r\n  sweep -r D:/Projectku\n  sweep -f"
 )]
 struct Args {
     /// Direktori yang akan dipindai
@@ -34,6 +34,10 @@ struct Args {
     /// Abaikan cache dan lakukan pemindaian ulang
     #[arg(short, long)]
     rescan: bool,
+
+    /// Percayai cache apa adanya, tanpa mencocokkannya dengan kondisi disk saat ini
+    #[arg(short, long)]
+    fast: bool,
 }
 
 /// Layar aplikasi. `Scanning` dipakai selama scan awal (atau --rescan) berjalan
@@ -50,6 +54,11 @@ pub struct ScanningState {
     pub done: usize,
     pub total: usize,
     pub current: String,
+    /// true = lagi mencocokkan cache dengan kondisi disk (bukan scan dari nol).
+    /// Bedanya: kalau dibatalkan, tree cache tetap bisa dipakai (bukan keluar app).
+    pub verifying: bool,
+    /// Waktu scan terakhir dari cache (dipakai kalau validasi dibatalkan).
+    pub cached_scanned_at: Option<u64>,
     /// Pesan dari sebelum scan dimulai (mis. cache gagal dibaca), dibawa ke
     /// BrowsingState.message begitu scan selesai supaya user tetap lihat.
     pub startup_message: Option<String>,
@@ -106,7 +115,8 @@ fn main() -> Result<()> {
     };
 
     let screen = match cached {
-        Some(loaded) => {
+        // --fast: tampilkan cache apa adanya (umurnya tetap kelihatan di breadcrumb).
+        Some(loaded) if args.fast => {
             let mut root = loaded.tree;
             root.sort_recursive();
             Screen::Browsing(BrowsingState {
@@ -117,6 +127,29 @@ fn main() -> Result<()> {
                 pending_delete: None,
                 message: startup_message,
                 cache_scanned_at: Some(loaded.scanned_at),
+            })
+        }
+        // Default: cache DICOCOKKAN dulu dengan kondisi disk saat ini, supaya folder/file
+        // yang sudah dihapus (atau baru dibuat) di luar Sweep gak bikin data basi.
+        Some(loaded) => {
+            let (tx, rx) = mpsc::channel();
+            let cancel = Arc::new(AtomicBool::new(false));
+            let cancel_for_thread = Arc::clone(&cancel);
+            let old_tree = loaded.tree;
+            thread::spawn(move || {
+                scanner::reconcile_with_progress(old_tree, tx, cancel_for_thread);
+            });
+
+            Screen::Scanning(ScanningState {
+                root_path,
+                rx,
+                cancel,
+                done: 0,
+                total: 0,
+                current: String::new(),
+                verifying: true,
+                cached_scanned_at: Some(loaded.scanned_at),
+                startup_message,
             })
         }
         None => {
@@ -138,6 +171,8 @@ fn main() -> Result<()> {
                 done: 0,
                 total: 0,
                 current: String::new(),
+                verifying: false,
+                cached_scanned_at: None,
                 startup_message,
             })
         }

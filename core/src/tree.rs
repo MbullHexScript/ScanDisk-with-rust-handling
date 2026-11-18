@@ -18,6 +18,12 @@ pub struct Node {
     /// bisa di-load tanpa error deserialize.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scan_error: Option<String>,
+    /// Waktu modifikasi direktori (nanodetik sejak epoch) saat di-scan. Dipakai
+    /// `scanner::reconcile` buat tahu apakah isi direktori berubah (file/folder
+    /// ditambah/dihapus) tanpa harus baca ulang semua direktori. `None` untuk file,
+    /// cache lama, atau direktori yang baru banget dimodifikasi (lihat `mtime_for_cache`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mtime: Option<u64>,
 }
 
 impl Node {
@@ -26,7 +32,7 @@ impl Node {
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| path.to_string_lossy().to_string());
-        Self { name, path, size, is_dir: false, children: vec![], scan_error: None }
+        Self { name, path, size, is_dir: false, children: vec![], scan_error: None, mtime: None }
     }
 
     pub fn new_dir(path: PathBuf, children: Vec<Node>) -> Self {
@@ -35,7 +41,7 @@ impl Node {
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| path.to_string_lossy().to_string());
-        Self { name, path, size, is_dir: true, children, scan_error: None }
+        Self { name, path, size, is_dir: true, children, scan_error: None, mtime: None }
     }
 
     /// Direktori yang gagal dibaca sama sekali (mis. permission denied).
@@ -52,6 +58,7 @@ impl Node {
             is_dir: true,
             children: vec![],
             scan_error: Some(error_msg),
+            mtime: None,
         }
     }
 

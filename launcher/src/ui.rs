@@ -29,7 +29,7 @@ fn render_scanning(f: &mut Frame, s: &ScanningState) {
     let path_text = s.root_path.display().to_string();
     f.render_widget(
         Paragraph::new(path_text)
-            .block(Block::default().borders(Borders::ALL).title(" Memindai "))
+            .block(Block::default().borders(Borders::ALL).title(if s.verifying { " Memvalidasi cache " } else { " Memindai " }))
             .style(Style::default().fg(Color::Cyan)),
         chunks[0],
     );
@@ -57,9 +57,9 @@ fn render_scanning(f: &mut Frame, s: &ScanningState) {
     );
 
     let current_text = if s.current.is_empty() {
-        "Membaca daftar isi direktori...".to_string()
+        if s.verifying { "Mencocokkan cache dengan kondisi disk...".to_string() } else { "Membaca daftar isi direktori...".to_string() }
     } else {
-        format!("Memindai: {}", truncate(&s.current, 60))
+        format!("{}: {}", if s.verifying { "Memeriksa" } else { "Memindai" }, truncate(&s.current, 60))
     };
     f.render_widget(
         Paragraph::new(current_text).style(Style::default().fg(Color::Gray)),
@@ -67,7 +67,7 @@ fn render_scanning(f: &mut Frame, s: &ScanningState) {
     );
 
     f.render_widget(
-        Paragraph::new("Esc/q — batalkan scan")
+        Paragraph::new(if s.verifying { "Esc/q — lewati validasi (pakai cache apa adanya)" } else { "Esc/q — batalkan scan" })
             .block(Block::default().borders(Borders::ALL))
             .style(Style::default().fg(Color::DarkGray)),
         chunks[3],
